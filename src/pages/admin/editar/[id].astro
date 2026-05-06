@@ -1,0 +1,118 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import db from '../../../lib/db.js';
+import fs from 'fs';
+import path from 'path';
+
+const { id } = Astro.params;
+let msg = '';
+let errMsg = '';
+
+const product = db.prepare('SELECT * FROM menus WHERE id = ?').get(id) as any;
+if (!product) {
+  return Astro.redirect('/admin');
+}
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const name = (formData.get('name') as string)?.trim();
+  const price = parseFloat(formData.get('price') as string);
+  const description = (formData.get('description') as string)?.trim() || '';
+  const categoryId = formData.get('category_id') as string;
+  const photo = formData.get('photo') as File;
+
+  if (!name || isNaN(price)) {
+    errMsg = 'Nombre y precio son requeridos.';
+  } else {
+    let imageUrl = product.image_url;
+
+    if (photo && photo.size > 0) {
+      // Delete old image
+      if (product.image_url) {
+        const oldPath = path.join(process.cwd(), 'public', product.image_url);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      // Save new image
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+      fs.mkdirSync(uploadsDir, { recursive: true });
+      const fileName = `${Date.now()}-${photo.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const filePath = path.join(uploadsDir, fileName);
+      const buffer = Buffer.from(await photo.arrayBuffer());
+      fs.writeFileSync(filePath, buffer);
+      imageUrl = `/uploads/${fileName}`;
+    }
+
+    db.prepare('UPDATE menus SET name = ?, price = ?, description = ?, category_id = ?, image_url = ? WHERE id = ?').run(name, price, description, categoryId || null, imageUrl, id);
+    return Astro.redirect('/admin?msg=updated');
+  }
+}
+
+const categories = db.prepare('SELECT * FROM categories ORDER BY name ASC').all() as any[];
+---
+
+<Layout title={`Editar ${product.name} — Admin Pan y Dulce`}>
+  <main class="min-h-screen bg-brand-dark text-white">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h1 class="text-3xl font-800 text-brand-primary">Editar Producto</h1>
+          <p class="text-gray-500 text-sm mt-1">Editando: {product.name}</p>
+        </div>
+        <a href="/admin" class="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-gray-300 font-medium text-sm px-4 py-2 rounded-lg hover:bg-white/10 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          Cancelar
+        </a>
+      </div>
+
+      <!-- Notifications -->
+      {errMsg && (
+        <div class="mb-6 flex items-center justify-between bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg">
+          <span>{errMsg}</span>
+          <button onclick="this.parentElement.style.display='none'" class="text-red-400 hover:text-red-300 font-bold text-lg leading-none">&times;</button>
+        </div>
+      )}
+
+      <!-- Edit Form -->
+      <div class="bg-brand-dark-card border border-white/5 rounded-xl p-6">
+        <form method="POST" enctype="multipart/form-data" class="space-y-5">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Nombre *</label>
+            <input type="text" name="name" value={product.name} required class="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-brand-primary/50 transition-all" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Precio *</label>
+            <input type="number" name="price" step="1" value={product.price} required class="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-brand-primary/50 transition-all" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Descripción</label>
+            <textarea name="description" rows="3" class="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-brand-primary/50 transition-all resize-none">{product.description || ''}</textarea>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Categoría</label>
+            <select name="category_id" class="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-brand-primary/50 transition-all">
+              <option value="">Sin categoría</option>
+              {categories.map(cat => (
+                <option value={cat.id} selected={cat.id === product.category_id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Foto</label>
+            {product.image_url && (
+              <div class="mb-3">
+                <img src={product.image_url} alt={product.name} class="w-32 h-32 object-cover rounded-lg border border-white/10" />
+                <p class="text-gray-600 text-xs mt-1">Foto actual. Sube una nueva para reemplazarla.</p>
+              </div>
+            )}
+            <input type="file" name="photo" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-primary/10 file:text-brand-primary hover:file:bg-brand-primary/20 transition-all" />
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button type="submit" class="bg-brand-primary text-black font-semibold px-6 py-2.5 rounded-lg hover:bg-brand-accent transition-all">Guardar Cambios</button>
+            <a href="/admin" class="inline-flex items-center px-6 py-2.5 rounded-lg bg-white/5 border border-white/10 text-gray-300 font-medium hover:bg-white/10 transition-all">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</Layout>

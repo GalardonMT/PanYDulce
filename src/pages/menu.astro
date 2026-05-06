@@ -1,0 +1,126 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+import db from '../lib/db.js';
+
+const products = db.prepare('SELECT menus.*, categories.name as category_name FROM menus LEFT JOIN categories ON menus.category_id = categories.id ORDER BY menus.name ASC').all();
+const categories = db.prepare('SELECT * FROM categories ORDER BY name ASC').all();
+---
+
+<Layout title="Menú — Pan y Dulce" description="Descubre nuestro menú completo de panadería, pastelería y platos preparados.">
+  <Navbar />
+  <main class="flex-1 pt-16 bg-black min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+      <!-- Title -->
+      <div class="text-center mb-12">
+        <span class="inline-block text-brand-primary text-sm font-semibold tracking-widest uppercase mb-3">Pan y Dulce</span>
+        <h1 class="text-4xl sm:text-5xl font-800 text-white mb-4">Nuestro Menú</h1>
+        <p class="text-gray-500 max-w-xl mx-auto">Explora toda nuestra selección de productos artesanales.</p>
+      </div>
+
+      <!-- Search -->
+      <div class="max-w-md mx-auto mb-8">
+        <div class="relative">
+          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" id="menu-search" placeholder="Buscar producto..." class="w-full pl-12 pr-4 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-brand-primary/50 focus:ring-1 focus:ring-brand-primary/25 transition-all" />
+        </div>
+      </div>
+
+      <!-- Category Slider -->
+      <div class="relative flex items-center gap-2 mb-12">
+        <button id="cat-btn-all" class="shrink-0 px-5 py-2 rounded-full text-sm font-semibold bg-brand-primary text-black transition-all duration-300 cat-btn active" data-cat="all">Todos</button>
+        <button id="slider-left" class="shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all" aria-label="Anterior">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <div id="cat-slider" class="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth">
+          {categories.map((cat: any) => (
+            <button class="shrink-0 px-5 py-2 rounded-full text-sm font-semibold bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-all duration-300 cat-btn" data-cat={cat.name}>{cat.name}</button>
+          ))}
+        </div>
+        <button id="slider-right" class="shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:bg-white/10 transition-all" aria-label="Siguiente">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- Products Grid -->
+      {products.length === 0 ? (
+        <div class="text-center py-20">
+          <div class="text-6xl mb-4">🍞</div>
+          <p class="text-gray-500 text-lg">Aún no hay productos en el menú.</p>
+        </div>
+      ) : (
+        <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {products.map((item: any) => (
+            <div class="product-card group bg-brand-dark-card rounded-2xl overflow-hidden border border-white/5 hover:border-brand-primary/30 hover:-translate-y-2 transition-all duration-500 shadow-lg hover:shadow-2xl hover:shadow-brand-primary/10" data-name={item.name.toLowerCase()} data-cat={item.category_name || ''}>
+              <div class="relative overflow-hidden h-56">
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                ) : (
+                  <div class="w-full h-full bg-brand-dark-lighter flex items-center justify-center">
+                    <svg class="w-16 h-16 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  </div>
+                )}
+                <div class="absolute top-4 right-4 bg-brand-primary text-black text-sm font-bold px-3 py-1 rounded-full shadow-lg">${item.price.toLocaleString('es-CL')}</div>
+                {item.category_name && <div class="absolute top-4 left-4 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 rounded-full">{item.category_name}</div>}
+              </div>
+              <div class="p-6">
+                <h3 class="text-lg font-bold text-white mb-2 group-hover:text-brand-primary transition-colors">{item.name}</h3>
+                {item.description && <p class="text-gray-500 text-sm line-clamp-2">{item.description}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <!-- No results message -->
+      <div id="no-results" class="hidden text-center py-16">
+        <div class="text-5xl mb-4">🔍</div>
+        <p class="text-gray-500 text-lg">No se encontraron productos.</p>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  const searchInput = document.getElementById('menu-search') as HTMLInputElement;
+  const cards = document.querySelectorAll('.product-card') as NodeListOf<HTMLElement>;
+  const catBtns = document.querySelectorAll('.cat-btn') as NodeListOf<HTMLElement>;
+  const noResults = document.getElementById('no-results')!;
+  const slider = document.getElementById('cat-slider')!;
+  let activeCat = 'all';
+
+  function filterCards() {
+    const query = searchInput?.value.toLowerCase() || '';
+    let visible = 0;
+    cards.forEach(card => {
+      const name = card.dataset.name || '';
+      const cat = card.dataset.cat || '';
+      const matchSearch = name.includes(query);
+      const matchCat = activeCat === 'all' || cat === activeCat;
+      const show = matchSearch && matchCat;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    noResults.classList.toggle('hidden', visible > 0);
+  }
+
+  searchInput?.addEventListener('input', filterCards);
+
+  catBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCat = btn.dataset.cat || 'all';
+      catBtns.forEach(b => {
+        b.classList.remove('bg-brand-primary', 'text-black', 'active');
+        b.classList.add('bg-white/5', 'text-gray-300');
+      });
+      btn.classList.add('bg-brand-primary', 'text-black', 'active');
+      btn.classList.remove('bg-white/5', 'text-gray-300');
+      filterCards();
+    });
+  });
+
+  document.getElementById('slider-left')?.addEventListener('click', () => slider.scrollBy({ left: -200, behavior: 'smooth' }));
+  document.getElementById('slider-right')?.addEventListener('click', () => slider.scrollBy({ left: 200, behavior: 'smooth' }));
+</script>

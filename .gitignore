@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.astro/
+sqlite.db
+sqlite.db-journal
+public/uploads/
+.env
