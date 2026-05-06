@@ -3,7 +3,15 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.resolve(__dirname, '../../sqlite.db');
+
+// In production (Docker), use /app/data for persistent storage
+// In development, use the project root
+import fs from 'fs';
+const dataDir = '/app/data';
+const useDataDir = fs.existsSync(dataDir);
+const dbPath = useDataDir
+  ? path.join(dataDir, 'sqlite.db')
+  : path.resolve(__dirname, '../../sqlite.db');
 
 const db = new Database(dbPath);
 

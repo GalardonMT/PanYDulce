@@ -13,6 +13,7 @@ ENV PORT=4321
 
 EXPOSE 4321
 
-VOLUME ["/app/public/uploads"]
+RUN mkdir -p /app/data /app/public/uploads
+VOLUME ["/app/data", "/app/public/uploads"]
 
 CMD ["node", "./dist/server/entry.mjs"]
